@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+
+#TODO: investigate creating a package
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
+import argparse
+import dropbox
+import sys
+import os
+import json
+
+def parse_args():
+  parser = argparse.ArgumentParser('uploads a file to dropbox and returns a link')
+  parser.add_argument('-e', '--extension', 
+    help="Defines the extension and thus display properties" +
+         "of what is uploaded", default="txt")
+  parser.add_argument('-c', '--configuration',
+      help="path to config file, will be overwritten",
+      default=os.path.join(os.path.expanduser("~"), ".pastebinrc"))
+  return parser.parse_args()
+
+def reauth():
+    app_key = 'iop1af27y0yh10t'
+    #TODO: Figure out some way to deal with this, although that seems highly unlikely.
+    app_secret = 'h898n3atmv7kwcb'
+    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret) 
+    authorize_url = flow.start()
+    print('1. Go to: ' + authorize_url)
+    print('2. Click "Allow" (you might have to log in first)')
+    print('3. Copy the authorization code.')
+    sys.stdin = open('/dev/tty')
+    code = raw_input("Enter the authorization code here: ").strip()
+    return flow.finish(code)
+
+def main():
+  args = parse_args()
+  conf_file = args.configuration
+  extension = args.extension
+  to_write = sys.stdin.read()
+  
+  if os.path.isfile(conf_file):
+    try: 
+      with open(conf_file, "r") as conf_fh:
+        conf = json.loads(conf_fh.read())
+      user_id = conf['user_id']
+      access_token = conf['access_token']
+      client = dropbox.client.DropboxClient(access_token)
+      
+      # hack to make client fail because of no method to check
+      # if access token is valid or not
+      client.account_info()
+    except (dropbox.rest.ErrorResponse, ValueError):
+      access_token, user_id = reauth()
+  else:
+    access_token, user_id = reauth()
+
+  client = dropbox.client.DropboxClient(access_token)
+  # Don't write out correct config unless success
+  with open(conf_file, "w") as conf_fh:
+    conf = {"access_token": access_token,
+            "user_id": user_id}
+    conf_fh.write(json.dumps(conf))
+
+  tmp_name = "/%s.%s" % (os.urandom(8).encode("hex"), extension)
+  response = client.put_file(tmp_name, to_write)
+
+  print(client.share(response['path'])['url'])
+  return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
