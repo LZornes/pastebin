@@ -1,0 +1,6 @@
+.*
+!.gitignore
+pastebin.egg-info
+build/*
+dist/*
+ez_setup.pyc

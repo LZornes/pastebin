@@ -8,9 +8,7 @@ $ echo "foo" | pastebin
 https://db.tt/xxxxxxxx
 ```
 
-The installation script:
-* pip installs dropbox
-* adds a ~/.bin folder
-* puts a copy of pastebin in it
-* adds ~/.bin to your path via bashrc
-* execs bash for instant use
+Installation:
+```
+python setup.py install
+```
